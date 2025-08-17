@@ -17,49 +17,15 @@ import {
   AlertTriangle,
   FileDown
 } from "lucide-react";
-
-interface FeedbackRecord {
-  id: string;
-  content: string;
-  type: string;
-  date: string;
-  status: "pending" | "processing" | "resolved" | "archived";
-  product: string;
-  priority: "low" | "medium" | "high";
-}
-
-const mockData: FeedbackRecord[] = [
-  {
-    id: "FB001",
-    content: "理财产品收益显示异常，无法正常查看详细收益信息",
-    type: "功能问题",
-    date: "2024-01-15",
-    status: "pending",
-    product: "理财通",
-    priority: "high"
-  },
-  {
-    id: "FB002",
-    content: "希望能够在首页直接显示总资产变化趋势图",
-    type: "界面优化",
-    date: "2024-01-14",
-    status: "processing",
-    product: "理财通",
-    priority: "medium"
-  },
-  {
-    id: "FB003",
-    content: "购买理财产品的流程过于复杂，建议简化步骤",
-    type: "操作困难",
-    date: "2024-01-13",
-    status: "resolved",
-    product: "理财通",
-    priority: "low"
-  }
-];
+import useFeedbackStore, { Feedback } from "@/lib/feedbackStore";
+import Papa from "papaparse";
 
 export const DataManagement = () => {
-  const [records, setRecords] = useState<FeedbackRecord[]>(mockData);
+  const feedbacks = useFeedbackStore((s) => s.feedbacks);
+  const setFeedbacks = useFeedbackStore((s) => s.setFeedbacks);
+  const updateFeedback = useFeedbackStore((s) => s.updateFeedback);
+  const removeFeedback = useFeedbackStore((s) => s.removeFeedback);
+
   const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -76,7 +42,6 @@ export const DataManagement = () => {
   const handleSelectAll = () => {
     const filteredRecords = getFilteredRecords();
     const allSelected = filteredRecords.every(record => selectedRecords.includes(record.id));
-    
     if (allSelected) {
       setSelectedRecords([]);
     } else {
@@ -85,7 +50,7 @@ export const DataManagement = () => {
   };
 
   const getFilteredRecords = () => {
-    return records.filter(record => {
+    return feedbacks.filter(record => {
       const matchesSearch = record.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            record.type.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === "all" || record.status === statusFilter;
@@ -95,42 +60,40 @@ export const DataManagement = () => {
 
   const handleBatchOperation = async (operation: string) => {
     if (selectedRecords.length === 0) return;
-    
     setIsProcessing(true);
-    
-    // 模拟批量操作
     setTimeout(() => {
       switch (operation) {
         case "delete":
-          setRecords(prev => prev.filter(record => !selectedRecords.includes(record.id)));
+          selectedRecords.forEach(id => removeFeedback(id));
           break;
         case "archive":
-          setRecords(prev => prev.map(record => 
-            selectedRecords.includes(record.id) 
-              ? { ...record, status: "archived" as const }
-              : record
-          ));
+          selectedRecords.forEach(id => updateFeedback(id, { status: "archived" }));
           break;
         case "resolve":
-          setRecords(prev => prev.map(record => 
-            selectedRecords.includes(record.id) 
-              ? { ...record, status: "resolved" as const }
-              : record
-          ));
+          selectedRecords.forEach(id => updateFeedback(id, { status: "resolved" }));
           break;
       }
       setSelectedRecords([]);
       setIsProcessing(false);
-    }, 1000);
+    }, 500);
   };
 
   const handleExport = (format: string) => {
     const dataToExport = selectedRecords.length > 0 
-      ? records.filter(record => selectedRecords.includes(record.id))
+      ? feedbacks.filter(record => selectedRecords.includes(record.id))
       : getFilteredRecords();
-    
-    console.log(`导出${format}格式数据:`, dataToExport);
-    // 这里实现实际的导出逻辑
+    if (format === "csv") {
+      const csv = Papa.unparse(dataToExport);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "feedbacks.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    // 可扩展excel导出
   };
 
   const getStatusColor = (status: string) => {
@@ -280,7 +243,7 @@ export const DataManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">总记录数</p>
-                <p className="text-2xl font-bold text-primary">{records.length}</p>
+                <p className="text-2xl font-bold text-primary">{feedbacks.length}</p>
               </div>
               <Database className="h-8 w-8 text-primary" />
             </div>
@@ -305,7 +268,7 @@ export const DataManagement = () => {
               <div>
                 <p className="text-sm text-muted-foreground">待处理</p>
                 <p className="text-2xl font-bold text-destructive">
-                  {records.filter(r => r.status === "pending").length}
+                  {feedbacks.filter(r => r.status === "pending").length}
                 </p>
               </div>
               <AlertTriangle className="h-8 w-8 text-destructive" />
@@ -319,7 +282,7 @@ export const DataManagement = () => {
               <div>
                 <p className="text-sm text-muted-foreground">已归档</p>
                 <p className="text-2xl font-bold text-muted-foreground">
-                  {records.filter(r => r.status === "archived").length}
+                  {feedbacks.filter(r => r.status === "archived").length}
                 </p>
               </div>
               <Archive className="h-8 w-8 text-muted-foreground" />
