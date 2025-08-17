@@ -10,7 +10,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  base: "/sentiment-stream-ai/",
+  base: "/user-voice-system/",
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
