@@ -10,7 +10,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  base: "/user-voice-system/",
+  base: "/",
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
